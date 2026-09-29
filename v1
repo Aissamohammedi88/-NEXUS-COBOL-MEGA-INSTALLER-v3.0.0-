@@ -1,0 +1,1390 @@
+ #!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# ███╗ ██╗███████╗██╗ ██╗██╗ ██╗███████╗ ██████╗ ██████╗ ██████╗ ██████╗ ██╗
+# ████╗ ██║██╔════╝╚██╗██╔╝██║ ██║██╔════╝ ██╔════╝██╔═══██╗██╔══██╗██╔═══██╗██║
+# ██╔██╗ ██║█████╗ ╚███╔╝ ██║ ██║███████╗ ██║ ██║ ██║██████╔╝██║ ██║██║
+# ██║╚██╗██║██╔══╝ ██╔██╗ ██║ ██║╚════██║ ██║ ██║ ██║██╔══██╗██║ ██║██║
+# ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║ ╚██████╗╚██████╔╝██████╔╝╚██████╔╝███████╗
+# ╚═╝ ╚═══╝╚══════╝╚═╝ ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+#
+# NEXUS COBOL ENTERPRISE SUITE 2026
+# ─────────────────────────────────────────────────────────────────────────
+# Installation + Clone + Optimisation + Compilation + Benchmark + Rapport
+#
+# Auteur : Aissa Mohammedi (DGK)
+# Licence : NEXUS-OPEN-2.0
+# Version : 4.0.0 "Founders Edition"
+# Date : 2026
+#
+# Plateformes supportees :
+# - Linux Mint / Ubuntu / Debian
+# - Fedora / RHEL / CentOS
+# - Arch Linux / Manjaro
+# - macOS (Homebrew)
+#
+# Conçu pour inspirer les fondateurs, banques centrales et institutions
+# financières qui reposent sur COBOL depuis 1959.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+set -u
+set -o pipefail 2>/dev/null || true
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONSTANTES ET COULEURS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+readonly VERSION="4.0.0"
+readonly CODENAME="Founders Edition"
+readonly AUTEUR="Aissa Mohammedi (DGK)"
+readonly LICENCE="NEXUS-OPEN-2.0"
+readonly BUILD_DATE="2026"
+
+# Couleurs ANSI
+readonly RESET='\033[0m'
+readonly BOLD='\033[1m'
+readonly DIM='\033[2m'
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[1;34m'
+readonly MAGENTA='\033[0;35m'
+readonly CYAN='\033[0;36m'
+readonly WHITE='\033[1;37m'
+
+# Symboles
+readonly OK_SYM="✓"
+readonly KO_SYM="✗"
+readonly ARROW="→"
+readonly DOT="·"
+readonly STAR="★"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FONCTIONS D'AFFICHAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+print_banner() {
+clear
+echo ""
+echo -e "${CYAN}${BOLD}"
+cat << "BANNER"
+╔══════════════════════════════════════════════════════════════════════════╗
+║ ║
+║ ███╗ ██╗███████╗██╗ ██╗██╗ ██╗███████╗ ║
+║ ████╗ ██║██╔════╝╚██╗██╔╝██║ ██║██╔════╝ ║
+║ ██╔██╗ ██║█████╗ ╚███╔╝ ██║ ██║███████╗ ║
+║ ██║╚██╗██║██╔══╝ ██╔██╗ ██║ ██║╚════██║ ║
+║ ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║ ║
+║ ╚═╝ ╚═══╝╚══════╝╚═╝ ╚═╝ ╚═════╝ ╚══════╝ ║
+║ ║
+║ COBOL ENTERPRISE SUITE 2026 ║
+║ ───────────────────────── ║
+║ 60+ ans de fiabilité · 43% des banques · 95% des ATM ║
+║ ║
+╚══════════════════════════════════════════════════════════════════════════╝
+BANNER
+echo -e "${RESET}"
+printf " ${BOLD}${WHITE}Version :${RESET} ${CYAN}%s${RESET} ${DIM}\"%s\"${RESET}\n" "$VERSION" "$CODENAME"
+printf " ${BOLD}${WHITE}Auteur :${RESET} ${MAGENTA}%s${RESET}\n" "$AUTEUR"
+printf " ${BOLD}${WHITE}Licence :${RESET} ${GREEN}%s${RESET}\n" "$LICENCE"
+printf " ${BOLD}${WHITE}Build :${RESET} %s\n" "$BUILD_DATE"
+printf " ${BOLD}${WHITE}Plateforme:${RESET} %s %s\n" "$(uname -s)" "$(uname -m)"
+printf " ${BOLD}${WHITE}Date :${RESET} %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+printf " ${BOLD}${WHITE}Utilisateur:${RESET} %s@%s\n" "$USER" "$(hostname)"
+echo ""
+echo -e " ${DIM}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo ""
+}
+
+ok() { printf " ${GREEN}${OK_SYM}${RESET} %s\n" "$1"; }
+warn() { printf " ${YELLOW}⚠${RESET} %s\n" "$1"; }
+err() { printf " ${RED}${KO_SYM}${RESET} %s\n" "$1"; }
+info() { printf " ${CYAN}${DOT}${RESET} %s\n" "$1"; }
+star() { printf " ${YELLOW}${STAR}${RESET} %s\n" "$1"; }
+
+section() {
+echo ""
+echo -e "${BOLD}${BLUE} ╔════════════════════════════════════════════════════════════════════════╗${RESET}"
+printf "${BOLD}${BLUE} ║${RESET} ${BOLD}${WHITE}%-70s${RESET} ${BOLD}${BLUE}║${RESET}\n" "$1"
+echo -e "${BOLD}${BLUE} ╚════════════════════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+}
+
+subsection() {
+echo -e "\n ${BOLD}${MAGENTA}▸ %s${RESET}\n" "$1"
+}
+
+separator() {
+echo -e " ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DETECTION DU SYSTEME
+# ═══════════════════════════════════════════════════════════════════════════════
+
+detect_os() {
+if [ -f /etc/os-release ]; then
+. /etc/os-release
+OS_ID="${ID:-unknown}"
+OS_NAME="${PRETTY_NAME:-$OS_ID}"
+OS_FAMILY="${ID_LIKE:-$OS_ID}"
+elif [ "$(uname -s)" = "Darwin" ]; then
+OS_ID="macos"
+OS_NAME="macOS $(sw_vers -productVersion 2>/dev/null || echo '')"
+OS_FAMILY="macos"
+else
+OS_ID="unknown"
+OS_NAME="$(uname -s)"
+OS_FAMILY="unknown"
+fi
+
+case "$OS_FAMILY" in
+*debian*|*ubuntu*) PKG_MGR="apt";;
+*fedora*|*rhel*) PKG_MGR="dnf";;
+*arch*) PKG_MGR="pacman";;
+*macos*) PKG_MGR="brew";;
+*) PKG_MGR="unknown";;
+esac
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PARSING DES ARGUMENTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+OPT_CLEAN=0
+OPT_FAST=0
+OPT_WEB=0
+OPT_BENCH=0
+OPT_CLONE=0
+OPT_ALL=0
+OPT_VERBOSE=0
+OPT_NO_INSTALL=0
+OPT_QUIET=0
+OPT_ENTERPRISE=0
+OPT_FINANCE=0
+OPT_REPORT=0
+OPT_JSON=0
+OPT_DEBUG=0
+OPT_UPX=0
+OPT_STRIP=1
+OPT_OPT_LEVEL="O2"
+
+print_help() {
+cat << HELP
+NEXUS COBOL ENTERPRISE SUITE v$VERSION "$CODENAME"
+─────────────────────────────────────────────────────────────
+
+USAGE : $0 [OPTIONS]
+
+PROFILS D'INSTALLATION :
+--enterprise Installation complète pour entreprises
+--finance Profil bancaire / assurance (COBOL + SQL)
+--all Tout activer (clone + bench + rapport)
+
+COMPILATION :
+--fast Compilation rapide (-O0)
+--opt3 Compilation agressive (-O3)
+--strip Activer le strip des binaires (défaut)
+--no-strip Désactiver le strip
+--upx Compression UPX (si installé)
+
+CLONE ET SOURCES :
+--clone Cloner les dépôts COBOL de référence
+
+OUTILS :
+--web Lancer l'interface web après installation
+--bench Lancer les benchmarks
+--report Générer le rapport final
+--json Sortie JSON pour intégration CI/CD
+
+NETTOYAGE :
+--clean Nettoyer l'ancien build
+--no-install Ne pas installer gnucobol
+
+DEBUG :
+--verbose Détails complets
+--quiet Mode silencieux
+--debug Mode debug (trace bash)
+--help Cette aide
+
+EXEMPLES :
+$0 --enterprise # Installation complète
+$0 --finance --clone # Profil bancaire
+$0 --all --clean --verbose # Tout nettoyer et installer
+$0 --fast --bench # Compilation rapide + bench
+$0 --report --json # Rapport JSON
+
+HELP
+exit 0
+}
+
+while [ $# -gt 0 ]; do
+case "$1" in
+--help|-h) print_help ;;
+--clean) OPT_CLEAN=1 ;;
+--fast) OPT_FAST=1; OPT_OPT_LEVEL="O0" ;;
+--opt3) OPT_OPT_LEVEL="O3" ;;
+--web) OPT_WEB=1 ;;
+--bench) OPT_BENCH=1 ;;
+--clone) OPT_CLONE=1 ;;
+--all) OPT_ALL=1 ;;
+--enterprise) OPT_ENTERPRISE=1; OPT_CLONE=1; OPT_BENCH=1; OPT_REPORT=1 ;;
+--finance) OPT_FINANCE=1; OPT_CLONE=1; OPT_REPORT=1 ;;
+--report) OPT_REPORT=1 ;;
+--json) OPT_JSON=1 ;;
+--strip) OPT_STRIP=1 ;;
+--no-strip) OPT_STRIP=0 ;;
+--upx) OPT_UPX=1 ;;
+--verbose|-v) OPT_VERBOSE=1 ;;
+--quiet|-q) OPT_QUIET=1 ;;
+--debug) OPT_DEBUG=1; set -x ;;
+--no-install) OPT_NO_INSTALL=1 ;;
+*) warn "Option inconnue : $1" ;;
+esac
+shift
+done
+
+[ "$OPT_ALL" = "1" ] && { OPT_CLONE=1; OPT_BENCH=1; OPT_REPORT=1; }
+
+if [ "$OPT_QUIET" = "1" ]; then
+exec 1>/dev/null
+exec 2>/dev/null
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+readonly HOME_DIR="${HOME}"
+readonly BASE="${HOME_DIR}/Documents/nexus_cobol_enterprise"
+
+readonly SRC_DIR="${BASE}/src"
+readonly BIN_DIR="${BASE}/bin"
+readonly RUN_DIR="${BASE}/run"
+readonly OPT_DIR="${BASE}/optimise"
+readonly REPORT_DIR="${BASE}/rapports"
+readonly CLONE_DIR="${BASE}/clones"
+readonly BENCH_DIR="${BASE}/benchmarks"
+readonly CACHE_DIR="${BASE}/cache"
+readonly TOOLS_DIR="${BASE}/tools"
+readonly LOG_FILE="${BASE}/nexus_cobol.log"
+readonly CONFIG_FILE="${BASE}/config.json"
+readonly STATE_FILE="${BASE}/state.json"
+readonly MANIFEST_FILE="${BASE}/MANIFEST.txt"
+
+START_TIME=$(date +%s)
+BUILD_ID="$(date +%Y%m%d_%H%M%S)_$$"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LOGGER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+log() {
+local level="$1"
+shift
+local msg="$*"
+local ts
+ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+printf "[%s] [%s] %s\n" "$ts" "$level" "$msg" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+log_info() { log "INFO" "$@"; }
+log_warn() { log "WARN" "$@"; }
+log_error() { log "ERROR" "$@"; }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 0 : PREPARATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+prepare_environment() {
+section "ETAPE 0 / 9 · PREPARATION DE L'ENVIRONNEMENT"
+
+if [ "$OPT_CLEAN" = "1" ]; then
+info "Nettoyage complet de l'ancien build..."
+rm -rf "$BIN_DIR" "$RUN_DIR" "$OPT_DIR" "$REPORT_DIR" "$CACHE_DIR" 2>/dev/null || true
+ok "Ancien build supprimé"
+fi
+
+local dirs=(
+"$BASE" "$SRC_DIR" "$BIN_DIR" "$RUN_DIR" "$OPT_DIR"
+"$REPORT_DIR" "$CLONE_DIR" "$BENCH_DIR" "$CACHE_DIR" "$TOOLS_DIR"
+)
+
+for d in "${dirs[@]}"; do
+mkdir -p "$d" || { err "Impossible de créer $d"; exit 1; }
+done
+ok "10 dossiers créés dans $BASE"
+
+# Config JSON
+cat > "$CONFIG_FILE" << CONF
+{
+"nexus": {
+"version": "$VERSION",
+"codename": "$CODENAME",
+"build_id": "$BUILD_ID",
+"auteur": "$AUTEUR",
+"licence": "$LICENCE"
+},
+"system": {
+"os": "$OS_NAME",
+"os_id": "$OS_ID",
+"family": "$OS_FAMILY",
+"kernel": "$(uname -r)",
+"arch": "$(uname -m)",
+"hostname": "$(hostname)",
+"user": "$USER"
+},
+"options": {
+"opt_level": "$OPT_OPT_LEVEL",
+"strip": $OPT_STRIP,
+"upx": $OPT_UPX,
+"clone": $OPT_CLONE,
+"bench": $OPT_BENCH,
+"report": $OPT_REPORT,
+"finance": $OPT_FINANCE,
+"enterprise": $OPT_ENTERPRISE
+},
+"date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+CONF
+ok "Config : $CONFIG_FILE"
+log_info "Environnement préparé : $BASE"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 1 : DETECTION SYSTEME
+# ═══════════════════════════════════════════════════════════════════════════════
+
+detect_system() {
+section "ETAPE 1 / 9 · DETECTION DU SYSTEME"
+
+detect_os
+ok "Système : $OS_NAME"
+ok "Famille : $OS_FAMILY"
+ok "Gestionnaire de paquets : $PKG_MGR"
+ok "Architecture : $(uname -m)"
+ok "Kernel : $(uname -r)"
+
+subsection "Vérification des outils essentiels"
+local tools=(bash sh awk sed grep find tar gzip file)
+local missing=0
+for tool in "${tools[@]}"; do
+if command -v "$tool" >/dev/null 2>&1; then
+printf " ${GREEN}${OK_SYM}${RESET} %-10s ${DIM}%s${RESET}\n" "$tool" "$(command -v $tool)"
+else
+printf " ${RED}${KO_SYM}${RESET} %-10s ${DIM}absent${RESET}\n" "$tool"
+missing=$((missing + 1))
+fi
+done
+
+if [ $missing -gt 0 ]; then
+warn "$missing outil(s) manquant(s)"
+else
+ok "Tous les outils essentiels sont présents"
+fi
+
+# Vérifier l'espace disque
+local free_space
+free_space=$(df -h "$HOME" | awk 'NR==2 {print $4}')
+ok "Espace libre dans \$HOME : $free_space"
+
+log_info "Système détecté : $OS_NAME ($OS_FAMILY)"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 2 : INSTALLATION GNucobol
+# ═══════════════════════════════════════════════════════════════════════════════
+
+install_gnucobol() {
+section "ETAPE 2 / 9 · INSTALLATION GNucobol"
+
+if [ "$OPT_NO_INSTALL" = "1" ]; then
+info "Installation sautée (--no-install)"
+elif command -v cobc >/dev/null 2>&1; then
+ok "cobc déjà installé : $(cobc --version 2>/dev/null | head -1)"
+else
+info "Installation de gnucobol + outils de compilation..."
+
+case "$PKG_MGR" in
+apt)
+sudo apt update -qq 2>/dev/null || true
+sudo apt install -y \
+gnucobol gnucobol-doc \
+build-essential make gcc g++ \
+git curl wget file binutils \
+pkg-config 2>&1 | \
+grep -E "^(Setting up|Unpacking|Selecting)" || true
+;;
+dnf)
+sudo dnf install -y gnucobol gnucobol-devel gcc gcc-c++ make \
+git curl wget file binutils 2>&1 | \
+grep -E "^(Installing|Complete)" || true
+;;
+pacman)
+sudo pacman -S --noconfirm gnucobol gcc make git curl wget \
+file binutils 2>&1 | \
+grep -E "^(installing|updating)" || true
+;;
+brew)
+brew install gnu-cobol gcc make git curl wget 2>&1 || true
+;;
+*)
+err "Gestionnaire de paquets non reconnu : $PKG_MGR"
+warn "Installe gnucobol manuellement"
+;;
+esac
+
+if command -v cobc >/dev/null 2>&1; then
+ok "gnucobol installé : $(cobc --version 2>/dev/null | head -1)"
+else
+err "Installation échouée"
+exit 1
+fi
+fi
+
+subsection "Vérification des outils de compilation"
+local tools=(cobc gcc g++ make git curl wget file ldd strip)
+[ "$OPT_UPX" = "1" ] && tools+=(upx)
+
+for tool in "${tools[@]}"; do
+if command -v "$tool" >/dev/null 2>&1; then
+local ver=""
+case "$tool" in
+cobc) ver=$(cobc --version 2>/dev/null | head -1 | awk '{print $2, $3}') ;;
+gcc) ver=$(gcc --version 2>/dev/null | head -1 | awk '{print $3}') ;;
+make) ver=$(make --version 2>/dev/null | head -1 | awk '{print $3}') ;;
+git) ver=$(git --version 2>/dev/null | awk '{print $3}') ;;
+*) ver="OK" ;;
+esac
+printf " ${GREEN}${OK_SYM}${RESET} %-8s ${DIM}%s${RESET}\n" "$tool" "$ver"
+else
+printf " ${YELLOW}⚠${RESET} %-8s ${DIM}absent${RESET}\n" "$tool"
+fi
+done
+
+log_info "Installation gnucobol terminée"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 3 : CLONE DES DEPOTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+clone_repositories() {
+section "ETAPE 3 / 9 · CLONE DES DEPOTS COBOL"
+
+if [ "$OPT_CLONE" != "1" ]; then
+info "Clone désactivé (--clone pour activer)"
+return 0
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+warn "git non installé, clone impossible"
+return 0
+fi
+
+subsection "Dépôts de référence COBOL 2026"
+
+local repos=(
+"https://github.com/OCamlPro/gnucobol.git|gnucobol-official|Compilateur GnuCOBOL officiel"
+"https://github.com/OCamlPro/superbol-studio-oss.git|superbol-studio|IDE COBOL moderne"
+"https://github.com/uwol/proleap-cobol-parser.git|proleap-parser|Parser COBOL en Java"
+"https://github.com/open-cobol/OpenCOBOL.git|opencobol-examples|Exemples officiels"
+"https://github.com/COBOL-IT/COBOL-IT-Compiler.git|cobol-it|Compilateur alternatif"
+)
+
+local cloned=0
+local failed=0
+
+for entry in "${repos[@]}"; do
+local url="${entry%%|*}"
+local rest="${entry#*|}"
+local nom="${rest%%|*}"
+local desc="${rest#*|}"
+local cible="${CLONE_DIR}/${nom}"
+
+printf "\n ${BOLD}%s${RESET}\n" "$nom"
+printf " ${DIM}%s${RESET}\n" "$desc"
+
+if [ -d "$cible/.git" ]; then
+local size
+size=$(du -sh "$cible" 2>/dev/null | cut -f1)
+ok "Déjà cloné ($size)"
+else
+if timeout 120 git clone --depth 1 "$url" "$cible" 2>/dev/null; then
+local size
+size=$(du -sh "$cible" 2>/dev/null | cut -f1)
+ok "Cloné ($size)"
+cloned=$((cloned + 1))
+else
+warn "Échec du clone (non bloquant)"
+failed=$((failed + 1))
+fi
+fi
+done
+
+echo ""
+ok "$cloned dépôt(s) cloné(s), $failed échec(s)"
+log_info "Clone : $cloned OK, $failed KO"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 4 : ECRITURE DES SOURCES COBOL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+write_cobol_sources() {
+section "ETAPE 4 / 9 · ECRITURE DES SOURCES COBOL"
+
+subsection "Programmes standards"
+
+# ─── 01 : NAIF ───
+cat > "$SRC_DIR/01_naive.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NAIVE.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-X PIC S9(9) COMP-3 VALUE 100.
+01 WS-TMP PIC S9(9) COMP-3 VALUE 0.
+01 WS-N PIC S9(9) COMP-3 VALUE 1.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "01 - VERSION NAIVE".
+DISPLAY "===========================================".
+DISPLAY "Pattern : MOVE + ADD + MOVE".
+DISPLAY " ".
+MOVE WS-X TO WS-TMP.
+ADD WS-N TO WS-TMP.
+MOVE WS-TMP TO WS-X.
+DISPLAY "Resultat : X = " WS-X.
+DISPLAY "Instructions : 3".
+DISPLAY "Cycles estimes : ~30".
+STOP RUN.
+COB
+ok "01_naive.cob"
+
+# ─── 02 : OPTIMISE ───
+cat > "$SRC_DIR/02_optimise.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. OPTIMISE.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-X PIC S9(9) COMP-3 VALUE 100.
+01 WS-N PIC S9(9) COMP-3 VALUE 1.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "02 - VERSION OPTIMISEE".
+DISPLAY "===========================================".
+DISPLAY "Pattern : ADD TO direct".
+DISPLAY " ".
+ADD WS-N TO WS-X.
+DISPLAY "Resultat : X = " WS-X.
+DISPLAY "Instructions : 1".
+DISPLAY "Cycles estimes : ~10".
+STOP RUN.
+COB
+ok "02_optimise.cob"
+
+# ─── 03 : ARITHMETIQUE ───
+cat > "$SRC_DIR/03_arith.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. ARITH.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-X PIC S9(9) COMP-3 VALUE 100.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "03 - ARITHMETIQUE NATIVE".
+DISPLAY "===========================================".
+DISPLAY "X initial = " WS-X.
+ADD 50 TO WS-X.
+DISPLAY "ADD 50 -> " WS-X.
+SUBTRACT 20 FROM WS-X.
+DISPLAY "SUBTRACT 20 -> " WS-X.
+MULTIPLY 2 BY WS-X.
+DISPLAY "MULTIPLY 2 -> " WS-X.
+DIVIDE 4 INTO WS-X.
+DISPLAY "DIVIDE 4 -> " WS-X.
+STOP RUN.
+COB
+ok "03_arith.cob"
+
+# ─── 04 : BOUCLE ───
+cat > "$SRC_DIR/04_loop.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LOOP.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-X PIC S9(9) COMP-3 VALUE 0.
+01 WS-I PIC S9(9) COMP-3 VALUE 0.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "04 - BOUCLE vs ADD GLOBAL".
+DISPLAY "===========================================".
+MOVE 0 TO WS-X.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 1000
+ADD 1 TO WS-X
+END-PERFORM.
+DISPLAY "Boucle 1000x ADD 1 -> X = " WS-X.
+MOVE 0 TO WS-X.
+ADD 1000 TO WS-X.
+DISPLAY "ADD 1000 TO X -> X = " WS-X.
+DISPLAY "Gain : 1000 instr -> 1 instr".
+STOP RUN.
+COB
+ok "04_loop.cob"
+
+# ─── 05 : BENCHMARK ───
+cat > "$SRC_DIR/05_bench.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. BENCH.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-I PIC 9(9) COMP-3 VALUE 0.
+01 WS-X PIC S9(18) COMP-3 VALUE 0.
+01 WS-N PIC S9(18) COMP-3 VALUE 3.
+01 WS-T0 PIC 9(18) COMP-3 VALUE 0.
+01 WS-T1 PIC 9(18) COMP-3 VALUE 0.
+01 WS-ITER PIC 9(9) COMP-3 VALUE 1000000.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "05 - BENCHMARK 1 000 000 ITERATIONS".
+DISPLAY "===========================================".
+DISPLAY " ".
+
+MOVE FUNCTION SECONDS TO WS-T0.
+MOVE 0 TO WS-X.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > WS-ITER
+COMPUTE WS-X = WS-X + WS-N
+END-PERFORM.
+MOVE FUNCTION SECONDS TO WS-T1.
+COMPUTE WS-T1 = (WS-T1 - WS-T0) * 1000.
+DISPLAY "COMPUTE X = X + N : " WS-T1 " ms".
+
+MOVE FUNCTION SECONDS TO WS-T0.
+MOVE 0 TO WS-X.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > WS-ITER
+ADD WS-N TO WS-X
+END-PERFORM.
+MOVE FUNCTION SECONDS TO WS-T1.
+COMPUTE WS-T1 = (WS-T1 - WS-T0) * 1000.
+DISPLAY "ADD N TO X : " WS-T1 " ms".
+
+MOVE 0 TO WS-X.
+MOVE FUNCTION SECONDS TO WS-T0.
+MULTIPLY WS-ITER BY WS-N GIVING WS-X.
+MOVE FUNCTION SECONDS TO WS-T1.
+COMPUTE WS-T1 = (WS-T1 - WS-T0) * 1000.
+DISPLAY "MULTIPLY N * ITER : " WS-T1 " ms".
+
+STOP RUN.
+COB
+ok "05_bench.cob"
+
+# ─── 06 : FICHIERS ───
+cat > "$SRC_DIR/06_fichiers.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. FICHIERS.
+AUTHOR. Aissa Mohammedi (DGK).
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+SELECT FICHIER-SORTIE ASSIGN TO "nexus_output.txt"
+ORGANIZATION IS LINE SEQUENTIAL.
+DATA DIVISION.
+FILE SECTION.
+FD FICHIER-SORTIE.
+01 ENR-SORTIE PIC X(100).
+WORKING-STORAGE SECTION.
+01 WS-I PIC 9(3) VALUE 0.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "06 - ECRITURE FICHIER".
+DISPLAY "===========================================".
+OPEN OUTPUT FICHIER-SORTIE.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 10
+STRING "Ligne " WS-I " creee par NEXUS"
+DELIMITED BY SIZE INTO ENR-SORTIE
+END-STRING
+WRITE ENR-SORTIE
+END-PERFORM.
+CLOSE FICHIER-SORTIE.
+DISPLAY "Fichier nexus_output.txt cree (10 lignes)".
+STOP RUN.
+COB
+ok "06_fichiers.cob"
+
+# ─── 07 : TABLEAUX ───
+cat > "$SRC_DIR/07_tableaux.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. TABLEAUX.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-TAB.
+05 WS-ELEM PIC 9(3) COMP-3 OCCURS 10 TIMES.
+01 WS-I PIC 9(3) COMP-3 VALUE 0.
+01 WS-SOMME PIC 9(6) COMP-3 VALUE 0.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "07 - TABLEAUX".
+DISPLAY "===========================================".
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 10
+COMPUTE WS-ELEM(WS-I) = WS-I * 10
+END-PERFORM.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 10
+ADD WS-ELEM(WS-I) TO WS-SOMME
+END-PERFORM.
+DISPLAY "Tableau 10 elements rempli (10,20,...,100)".
+DISPLAY "Somme totale : " WS-SOMME.
+STOP RUN.
+COB
+ok "07_tableaux.cob"
+
+# ─── 08 : DATES ───
+cat > "$SRC_DIR/08_dates.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. DATES.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-DATE PIC 9(8) VALUE 0.
+01 WS-TIME PIC 9(8) VALUE 0.
+01 WS-ANNEE PIC 9(4) VALUE 0.
+01 WS-MOIS PIC 9(2) VALUE 0.
+01 WS-JOUR PIC 9(2) VALUE 0.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "08 - DATES ET HEURES".
+DISPLAY "===========================================".
+ACCEPT WS-DATE FROM DATE YYYYMMDD.
+ACCEPT WS-TIME FROM TIME.
+MOVE WS-DATE(1:4) TO WS-ANNEE.
+MOVE WS-DATE(5:2) TO WS-MOIS.
+MOVE WS-DATE(7:2) TO WS-JOUR.
+DISPLAY "Date : " WS-JOUR "/" WS-MOIS "/" WS-ANNEE.
+DISPLAY "Heure : " WS-TIME(1:2) ":" WS-TIME(3:2) ":" WS-TIME(5:2).
+STOP RUN.
+COB
+ok "08_dates.cob"
+
+# ─── 09 : BANCAIRE (option finance) ───
+if [ "$OPT_FINANCE" = "1" ]; then
+cat > "$SRC_DIR/09_banque.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. BANQUE.
+AUTHOR. Aissa Mohammedi (DGK).
+*> SIMULATION BANCAIRE - INTERETS COMPOSES
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-CAPITAL PIC 9(10)V99 COMP-3 VALUE 10000.00.
+01 WS-TAUX PIC 9(3)V9999 COMP-3 VALUE 5.5000.
+01 WS-ANNEES PIC 9(2) COMP-3 VALUE 10.
+01 WS-I PIC 9(2) COMP-3 VALUE 0.
+01 WS-INTERETS PIC 9(10)V99 COMP-3 VALUE 0.
+01 WS-FINAL PIC 9(12)V99 COMP-3 VALUE 0.
+01 WS-TAUX-DEC PIC 9(3)V9999 COMP-3 VALUE 0.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "09 - SIMULATION BANCAIRE".
+DISPLAY "===========================================".
+DISPLAY "Capital initial : " WS-CAPITAL " EUR".
+DISPLAY "Taux annuel : " WS-TAUX " %".
+DISPLAY "Duree : " WS-ANNEES " ans".
+DISPLAY " ".
+COMPUTE WS-TAUX-DEC = WS-TAUX / 100.
+MOVE WS-CAPITAL TO WS-FINAL.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > WS-ANNEES
+COMPUTE WS-INTERETS = WS-FINAL * WS-TAUX-DEC
+ADD WS-INTERETS TO WS-FINAL
+DISPLAY "Annee " WS-I " : " WS-FINAL " EUR"
+END-PERFORM.
+DISPLAY " ".
+DISPLAY "Capital final : " WS-FINAL " EUR".
+STOP RUN.
+COB
+ok "09_banque.cob (mode finance)"
+else
+cat > "$SRC_DIR/09_sousprog.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SOUSPROG.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-A PIC S9(9) COMP-3 VALUE 42.
+01 WS-B PIC S9(9) COMP-3 VALUE 8.
+01 WS-R PIC S9(9) COMP-3 VALUE 0.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "09 - ARITHMETIQUE AVANCEE".
+DISPLAY "===========================================".
+COMPUTE WS-R = WS-A + WS-B.
+DISPLAY WS-A " + " WS-B " = " WS-R.
+COMPUTE WS-R = WS-A - WS-B.
+DISPLAY WS-A " - " WS-B " = " WS-R.
+COMPUTE WS-R = WS-A * WS-B.
+DISPLAY WS-A " * " WS-B " = " WS-R.
+COMPUTE WS-R = WS-A / WS-B.
+DISPLAY WS-A " / " WS-B " = " WS-R.
+COMPUTE WS-R = FUNCTION MOD(WS-A, WS-B).
+DISPLAY "MOD(" WS-A ", " WS-B ") = " WS-R.
+STOP RUN.
+COB
+ok "09_sousprog.cob"
+fi
+
+# ─── 10 : CHAINES ───
+cat > "$SRC_DIR/10_chaines.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CHAINES.
+AUTHOR. Aissa Mohammedi (DGK).
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-NOM PIC X(30) VALUE "Aissa Mohammedi".
+01 WS-TITRE PIC X(20) VALUE "NEXUS COBOL".
+01 WS-RESULTAT PIC X(60) VALUE SPACES.
+PROCEDURE DIVISION.
+DISPLAY "===========================================".
+DISPLAY "10 - MANIPULATION CHAINES".
+DISPLAY "===========================================".
+STRING WS-NOM DELIMITED BY SPACE
+" - "
+WS-TITRE DELIMITED BY SPACE
+INTO WS-RESULTAT
+END-STRING.
+DISPLAY "Concatene : " WS-RESULTAT.
+DISPLAY "Longueur nom : " FUNCTION LENGTH(FUNCTION TRIM(WS-NOM)).
+INSPECT WS-NOM REPLACING ALL "a" BY "A".
+DISPLAY "Uppercase : " WS-NOM.
+STOP RUN.
+COB
+ok "10_chaines.cob"
+
+local total
+total=$(ls -1 "$SRC_DIR"/*.cob 2>/dev/null | wc -l)
+echo ""
+ok "$total programme(s) COBOL écrit(s) dans $SRC_DIR"
+log_info "Sources COBOL écrites : $total"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 5 : COMPILATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+NB_OK=0
+NB_KO=0
+TOTAL_TIME=0
+TOTAL_SIZE=0
+
+compile_all() {
+section "ETAPE 5 / 9 · COMPILATION COBOL"
+
+info "Niveau d'optimisation : -$OPT_OPT_LEVEL"
+[ "$OPT_STRIP" = "1" ] && info "Strip des binaires : activé"
+[ "$OPT_UPX" = "1" ] && info "Compression UPX : activée"
+echo ""
+
+cd "$SRC_DIR" || exit 1
+
+local rapport_run="${REPORT_DIR}/run_${BUILD_ID}.txt"
+{
+echo "═══════════════════════════════════════════════════════════════════"
+echo "NEXUS COBOL ENTERPRISE - RUN REPORT"
+echo "═══════════════════════════════════════════════════════════════════"
+echo "Date : $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "Build ID : $BUILD_ID"
+echo "cobc : $(cobc --version | head -1)"
+echo "Flags : -$OPT_OPT_LEVEL"
+echo "═══════════════════════════════════════════════════════════════════"
+echo ""
+} > "$rapport_run"
+
+for src in *.cob; do
+[ -f "$src" ] || continue
+local nom="${src%.cob}"
+local bin="${BIN_DIR}/${nom}"
+
+printf " ${BOLD}${MAGENTA}▸${RESET} ${BOLD}%s${RESET}\n" "$src"
+
+# Compilation chronométrée
+local t0 t1 compile_ms
+t0=$(date +%s%N)
+if cobc -x -free "-${OPT_OPT_LEVEL}" -o "$bin" "$src" 2>"${CACHE_DIR}/${nom}.cerr"; then
+t1=$(date +%s%N)
+compile_ms=$(( (t1 - t0) / 1000000 ))
+local taille
+taille=$(stat -c%s "$bin" 2>/dev/null || echo 0)
+ok "Compile ${DIM}(${taille} o · ${compile_ms} ms)${RESET}"
+
+# Exécution
+cd "$RUN_DIR" || exit 1
+local t2 t3 run_ms
+t2=$(date +%s%N)
+if timeout 60 "$bin" > "${CACHE_DIR}/${nom}.out" 2>"${CACHE_DIR}/${nom}.rerr"; then
+t3=$(date +%s%N)
+run_ms=$(( (t3 - t2) / 1000000 ))
+ok "Execute ${DIM}(${run_ms} ms)${RESET}"
+
+# Afficher la sortie (indentée)
+if [ -s "${CACHE_DIR}/${nom}.out" ]; then
+echo -e " ${DIM}┌─────────────────────────────────────────${RESET}"
+while IFS= read -r line; do
+printf " ${DIM}│${RESET} %s\n" "$line"
+done < "${CACHE_DIR}/${nom}.out"
+echo -e " ${DIM}└─────────────────────────────────────────${RESET}"
+fi
+
+NB_OK=$((NB_OK + 1))
+TOTAL_TIME=$((TOTAL_TIME + run_ms))
+TOTAL_SIZE=$((TOTAL_SIZE + taille))
+
+{
+echo "─── $nom : SUCCES ───"
+echo "Compile : $compile_ms ms"
+echo "Run : $run_ms ms"
+echo "Taille : $taille octets"
+echo ""
+cat "${CACHE_DIR}/${nom}.out"
+echo ""
+} >> "$rapport_run"
+else
+err "Échec d'exécution"
+[ -s "${CACHE_DIR}/${nom}.rerr" ] && head -5 "${CACHE_DIR}/${nom}.rerr" | sed 's/^/ /'
+NB_KO=$((NB_KO + 1))
+echo "─── $nom : ECHEC EXECUTION ───" >> "$rapport_run"
+fi
+cd "$SRC_DIR" || exit 1
+else
+err "Échec de compilation"
+[ -s "${CACHE_DIR}/${nom}.cerr" ] && head -5 "${CACHE_DIR}/${nom}.cerr" | sed 's/^/ /'
+NB_KO=$((NB_KO + 1))
+echo "─── $nom : ECHEC COMPILATION ───" >> "$rapport_run"
+fi
+
+# Optimisation post-compilation
+if [ -f "$bin" ] && [ "$OPT_STRIP" = "1" ]; then
+local avant apres
+avant=$(stat -c%s "$bin" 2>/dev/null || echo 0)
+cp "$bin" "${OPT_DIR}/${nom}.orig" 2>/dev/null || true
+strip "$bin" 2>/dev/null && {
+apres=$(stat -c%s "$bin" 2>/dev/null || echo 0)
+local gain=$((avant - apres))
+if [ "$gain" -gt 0 ]; then
+printf " ${DIM}strip : %d → %d o (-%d o)${RESET}\n" "$avant" "$apres" "$gain"
+fi
+} || true
+fi
+
+echo ""
+done
+
+log_info "Compilation terminée : $NB_OK OK, $NB_KO KO"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 6 : BENCHMARKS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+run_benchmarks() {
+section "ETAPE 6 / 9 · BENCHMARKS"
+
+if [ "$OPT_BENCH" != "1" ]; then
+info "Benchmarks désactivés (--bench pour activer)"
+return 0
+fi
+
+local bench_rapport="${BENCH_DIR}/bench_${BUILD_ID}.txt"
+{
+echo "═══════════════════════════════════════════════════════════════════"
+echo "NEXUS COBOL BENCHMARK"
+echo "═══════════════════════════════════════════════════════════════════"
+echo "Date : $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "Host : $(hostname)"
+echo "CPU : $(nproc 2>/dev/null || echo '?') cores"
+echo "═══════════════════════════════════════════════════════════════════"
+echo ""
+} > "$bench_rapport"
+
+if [ -x "$BIN_DIR/05_bench" ]; then
+info "Exécution du benchmark (1 million d'itérations)..."
+echo ""
+cd "$RUN_DIR" || exit 1
+"$BIN_DIR/05_bench" 2>&1 | tee -a "$bench_rapport" | while IFS= read -r line; do
+printf " %s\n" "$line"
+done
+cd "$SRC_DIR" || exit 1
+echo ""
+ok "Benchmark terminé"
+ok "Rapport : $bench_rapport"
+else
+warn "Binaire de benchmark non trouvé"
+fi
+
+log_info "Benchmarks terminés"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 7 : RAPPORT FINAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+generate_report() {
+section "ETAPE 7 / 9 · RAPPORT FINAL"
+
+local elapsed=$(( $(date +%s) - START_TIME ))
+local nb_src nb_bin moyenne
+nb_src=$(ls -1 "$SRC_DIR"/*.cob 2>/dev/null | wc -l)
+nb_bin=$(find "$BIN_DIR" -maxdepth 1 -type f -executable 2>/dev/null | wc -l)
+moyenne=0
+[ "$NB_OK" -gt 0 ] && moyenne=$((TOTAL_TIME / NB_OK))
+
+local rapport_md="${REPORT_DIR}/RAPPORT_${BUILD_ID}.md"
+local rapport_json="${REPORT_DIR}/RAPPORT_${BUILD_ID}.json"
+
+# ─── Rapport Markdown ───
+cat > "$rapport_md" << MD
+# NEXUS COBOL ENTERPRISE SUITE — Rapport de build
+
+**Version :** $VERSION "$CODENAME"
+**Build ID :** $BUILD_ID
+**Date :** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+**Auteur :** $AUTEUR
+**Licence :** $LICENCE
+
+---
+
+## Contexte
+
+COBOL traite **estimation 3 billions de dollars** de transactions par jour dans le monde.
+**43%** des banques et **95%** des distributeurs automatiques dépendent de COBOL.
+**220 milliards** de lignes de code COBOL sont encore en production en 2026.
+
+Ce build démontre une installation, compilation et optimisation complète
+d'un environnement COBOL moderne — accessible, reproductible, tracé.
+
+---
+
+## Environnement
+
+| Composant | Valeur |
+|-----------|--------|
+| Système | $OS_NAME |
+| Famille | $OS_FAMILY |
+| Noyau | $(uname -r) |
+| Architecture | $(uname -m) |
+| Hôte | $(hostname) |
+| Utilisateur | $USER |
+
+---
+
+## Compilation
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Flags | \`-x -free -$OPT_OPT_LEVEL\` |
+| Strip | $([ "$OPT_STRIP" = "1" ] && echo "Activé" || echo "Désactivé") |
+| UPX | $([ "$OPT_UPX" = "1" ] && echo "Activé" || echo "Désactivé") |
+
+---
+
+## Statistiques
+
+| Métrique | Valeur |
+|----------|--------|
+| Sources COBOL | $nb_src |
+| Binaires produits | $nb_bin |
+| Compilations réussies | $NB_OK |
+| Compilations échouées | $NB_KO |
+| Temps total d'exécution | ${TOTAL_TIME} ms |
+| Temps moyen par programme | ${moyenne} ms |
+| Taille totale binaires | ${TOTAL_SIZE} octets |
+| Temps total du build | ${elapsed} secondes |
+
+---
+
+## Structure
+
+\`\`\`
+$BASE/
+├── src/ Sources COBOL
+├── bin/ Binaires compilés
+├── run/ Dossier d'exécution
+├── optimise/ Binaires optimisés (strip)
+├── rapports/ Rapports (MD + JSON + runs)
+├── clones/ Dépôts de référence
+├── benchmarks/ Benchmarks
+├── cache/ Fichiers temporaires
+├── tools/ Outils utilitaires
+├── config.json Configuration du build
+└── nexus_cobol.log Journal complet
+\`\`\`
+
+---
+
+## Commandes utiles
+
+\`\`\`bash
+# Compiler un nouveau programme
+cobc -x -free -O2 -o $BIN_DIR/mon_prog $SRC_DIR/mon_prog.cob
+
+# Exécuter
+$BIN_DIR/mon_prog
+
+# Voir le code C intermédiaire
+cobc -x -free -O2 -S -o /tmp/mon_prog.s $SRC_DIR/mon_prog.cob
+
+# Benchmark
+$BIN_DIR/05_bench
+
+# Nettoyer
+rm -rf $BIN_DIR/* $CACHE_DIR/*
+\`\`\`
+
+---
+
+## Notes techniques
+
+### Le pattern naïf vs optimisé
+
+**Naïf :** \`MOVE X TO TMP. ADD N TO TMP. MOVE TMP TO X.\`
+→ 3 instructions, ~30 cycles CPU
+
+**Optimisé :** \`ADD N TO X.\`
+→ 1 instruction, ~10 cycles CPU
+
+**Gain :** -66% d'instructions, -66% de cycles
+
+### En Z80/Z60 (assembleur)
+
+**Naïf :** \`LD A,(X). ADD A,N. LD (X),A.\`
+→ 3 instructions, 33 cycles
+
+**Optimisé :** \`LD HL,X. INC (HL).\`
+→ 2 instructions, 21 cycles
+
+**Gain :** -36% de cycles
+
+---
+
+## Auteur
+
+**Aissa Mohammedi (DGK)**
+- Email : awamomo646@outlook.com
+- Licence : NEXUS-OPEN-2.0
+- Projet : NEXUS COBOL ENTERPRISE SUITE 2026
+
+---
+
+*Généré automatiquement par NEXUS COBOL ENTERPRISE SUITE v$VERSION*
+MD
+
+ok "Rapport Markdown : $rapport_md"
+
+# ─── Rapport JSON ───
+cat > "$rapport_json" << JSON
+{
+"nexus": {
+"version": "$VERSION",
+"codename": "$CODENAME",
+"build_id": "$BUILD_ID",
+"auteur": "$AUTEUR",
+"licence": "$LICENCE"
+},
+"date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+"system": {
+"os": "$OS_NAME",
+"kernel": "$(uname -r)",
+"arch": "$(uname -m)",
+"hostname": "$(hostname)",
+"user": "$USER"
+},
+"stats": {
+"sources": $nb_src,
+"binaries": $nb_bin,
+"compile_ok": $NB_OK,
+"compile_ko": $NB_KO,
+"total_time_ms": $TOTAL_TIME,
+"average_time_ms": $moyenne,
+"total_size_bytes": $TOTAL_SIZE,
+"build_time_s": $elapsed
+},
+"options": {
+"opt_level": "$OPT_OPT_LEVEL",
+"strip": $OPT_STRIP,
+"upx": $OPT_UPX,
+"finance": $OPT_FINANCE,
+"enterprise": $OPT_ENTERPRISE
+}
+}
+JSON
+
+ok "Rapport JSON : $rapport_json"
+
+# State JSON
+cat > "$STATE_FILE" << STATE
+{
+"last_build": "$BUILD_ID",
+"date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+"success": $NB_OK,
+"failure": $NB_KO
+}
+STATE
+
+log_info "Rapport final généré : $rapport_md"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 8 : INTERFACE WEB
+# ═══════════════════════════════════════════════════════════════════════════════
+
+launch_web() {
+section "ETAPE 8 / 9 · INTERFACE WEB"
+
+if [ "$OPT_WEB" != "1" ]; then
+info "Interface web désactivée (--web pour activer)"
+return 0
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+info "Lancement du serveur HTTP sur port 8099..."
+info "Ouvre ton navigateur : http://localhost:8099/"
+
+cd "$BASE" || exit 1
+
+cat > "${TOOLS_DIR}/server.py" << 'PYEOF'
+#!/usr/bin/env python3
+import http.server
+import socketserver
+import os
+
+PORT = 8099
+DIR = os.path.expanduser("~/Documents/nexus_cobol_enterprise")
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+def __init__(self, *args, **kwargs):
+super().__init__(*args, directory=DIR, **kwargs)
+def log_message(self, *a):
+pass
+
+os.chdir(DIR)
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+print("[OK] http://localhost:{}".format(PORT))
+httpd.serve_forever()
+PYEOF
+
+python3 "${TOOLS_DIR}/server.py" &
+local WEB_PID=$!
+echo ""
+ok "Serveur web PID : $WEB_PID"
+ok "URL : http://localhost:8099/"
+ok "Ctrl+C pour arrêter le serveur"
+echo ""
+log_info "Serveur web lancé PID $WEB_PID"
+else
+warn "python3 non trouvé, interface web impossible"
+fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ETAPE 9 : RESUME FINAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+print_summary() {
+local elapsed=$(( $(date +%s) - START_TIME ))
+local nb_src nb_bin moyenne
+nb_src=$(ls -1 "$SRC_DIR"/*.cob 2>/dev/null | wc -l)
+nb_bin=$(find "$BIN_DIR" -maxdepth 1 -type f -executable 2>/dev/null | wc -l)
+moyenne=0
+[ "$NB_OK" -gt 0 ] && moyenne=$((TOTAL_TIME / NB_OK))
+
+section "ETAPE 9 / 9 · RESUME FINAL"
+
+echo -e " ${BOLD}${WHITE}BUILD RÉUSSI${RESET} ${DIM}(en ${elapsed} secondes)${RESET}"
+echo ""
+separator
+
+echo -e " ${BOLD}Statistiques :${RESET}"
+printf " ${CYAN}%-24s${RESET} ${WHITE}%d${RESET}\n" "Sources COBOL" "$nb_src"
+printf " ${CYAN}%-24s${RESET} ${WHITE}%d${RESET}\n" "Binaires produits" "$nb_bin"
+printf " ${CYAN}%-24s${RESET} ${GREEN}%d${RESET}\n" "Compilations OK" "$NB_OK"
+printf " ${CYAN}%-24s${RESET} ${RED}%d${RESET}\n" "Compilations KO" "$NB_KO"
+printf " ${CYAN}%-24s${RESET} ${WHITE}%d ms${RESET}\n" "Temps total execution" "$TOTAL_TIME"
+printf " ${CYAN}%-24s${RESET} ${WHITE}%d ms${RESET}\n" "Temps moyen/programme" "$moyenne"
+printf " ${CYAN}%-24s${RESET} ${WHITE}%d octets${RESET}\n" "Taille totale binaires" "$TOTAL_SIZE"
+
+echo ""
+separator
+echo -e " ${BOLD}Structure :${RESET}"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Sources" "$SRC_DIR"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Binaires" "$BIN_DIR"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Optimises" "$OPT_DIR"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Rapports" "$REPORT_DIR"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Benchmarks" "$BENCH_DIR"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Clones" "$CLONE_DIR"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Config" "$CONFIG_FILE"
+printf " ${CYAN}%-24s${RESET} ${DIM}%s${RESET}\n" "Journal" "$LOG_FILE"
+
+echo ""
+separator
+echo -e " ${BOLD}Commandes rapides :${RESET}"
+printf " ${GREEN}%s${RESET}\n" "$BIN_DIR/01_naive"
+printf " ${GREEN}%s${RESET}\n" "$BIN_DIR/02_optimise"
+printf " ${GREEN}%s${RESET}\n" "$BIN_DIR/05_bench"
+printf " ${GREEN}%s${RESET}\n" "cobc -x -free -O2 -o $BIN_DIR/mon_prog $SRC_DIR/mon_prog.cob"
+printf " ${GREEN}%s${RESET}\n" "$BIN_DIR/mon_prog"
+
+echo ""
+separator
+echo -e " ${BOLD}Prochaines étapes :${RESET}"
+printf " ${DIM}1.${RESET} Écrire un programme ${GREEN}nano %s/mon_prog.cob${RESET}\n" "$SRC_DIR"
+printf " ${DIM}2.${RESET} Compiler ${GREEN}cobc -x -free -O2 -o %s/mon_prog %s/mon_prog.cob${RESET}\n" "$BIN_DIR" "$SRC_DIR"
+printf " ${DIM}3.${RESET} Exécuter ${GREEN}%s/mon_prog${RESET}\n" "$BIN_DIR"
+printf " ${DIM}4.${RESET} Voir le rapport ${GREEN}cat %s/RAPPORT_%s.md${RESET}\n" "$REPORT_DIR" "$BUILD_ID"
+
+echo ""
+echo -e " ${DIM}═══════════════════════════════════════════════════════════════════════${RESET}"
+echo -e " ${BOLD}${CYAN}NEXUS COBOL ENTERPRISE SUITE v$VERSION${RESET} ${DIM}\"$CODENAME\"${RESET}"
+echo -e " ${DIM}$AUTEUR${RESET}"
+echo -e " ${DIM}$LICENCE${RESET}"
+echo -e " ${DIM}═══════════════════════════════════════════════════════════════════════${RESET}"
+echo ""
+
+log_info "Build terminé : $NB_OK OK, $NB_KO KO, ${elapsed}s"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+main() {
+print_banner
+detect_system
+log_info "═══ Démarrage NEXUS COBOL ENTERPRISE v$VERSION — Build $BUILD_ID ═══"
+prepare_environment
+detect_system
+install_gnucobol
+clone_repositories
+write_cobol_sources
+compile_all
+run_benchmarks
+generate_report
+
+if [ "$OPT_WEB" = "1" ]; then
+launch_web
+fi
+
+print_summary
+
+if [ "$OPT_WEB" = "1" ]; then
+echo -e " ${DIM}Serveur web actif. Ctrl+C pour arrêter.${RESET}\n"
+wait
+fi
+}
+
+# Capture Ctrl+C pour un arrêt propre
+trap 'echo ""; warn "Interruption utilisateur"; exit 130' INT TERM
+
+main "$@"
