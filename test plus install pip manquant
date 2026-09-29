@@ -1,0 +1,574 @@
+#!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# NEXUS COBOL HEALTH CHECK & AUTO-INSTALLER
+# ─────────────────────────────────────────
+# Scanne l'installation COBOL, détecte ce qui manque, installe automatiquement.
+#
+# Auteur : Aissa Mohammedi (DGK)
+# Licence : NEXUS-OPEN-2.0
+# Version : 1.0.0
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+set -u
+
+# ─── COULEURS ───
+G='\033[0;32m'
+Y='\033[1;33m'
+R='\033[0;31m'
+C='\033[0;36m'
+M='\033[0;35m'
+B='\033[1;34m'
+W='\033[1;37m'
+D='\033[2m'
+N='\033[0m'
+BOLD='\033[1m'
+
+# ─── FONCTIONS ───
+ok() { printf " ${G}✓${N} %s\n" "$1"; }
+ko() { printf " ${R}✗${N} %s\n" "$1"; }
+warn() { printf " ${Y}⚠${N} %s\n" "$1"; }
+info() { printf " ${C}ℹ${N} %s\n" "$1"; }
+fix() { printf " ${M}→${N} %s\n" "$1"; }
+
+section() {
+echo ""
+echo -e "${BOLD}${B}┌─────────────────────────────────────────────────────────────────────┐${N}"
+printf "${BOLD}${B}│${N} %-67s ${BOLD}${B}│${N}\n" "$1"
+echo -e "${BOLD}${B}└─────────────────────────────────────────────────────────────────────┘${N}"
+echo ""
+}
+
+# ─── VARIABLES GLOBALES ───
+MISSING=()
+BROKEN=()
+WORKING=()
+FIXED=()
+AUTO_INSTALL=0
+FIX_MODE=0
+VERBOSE=0
+BASE="$HOME/Documents/nexus_cobol_enterprise"
+
+# ─── ARGUMENTS ───
+while [ $# -gt 0 ]; do
+case "$1" in
+--fix) FIX_MODE=1 ;;
+--install) FIX_MODE=1; AUTO_INSTALL=1 ;;
+--verbose|-v) VERBOSE=1 ;;
+--help|-h)
+echo "NEXUS COBOL HEALTH CHECK v1.0.0"
+echo ""
+echo "Usage : $0 [options]"
+echo ""
+echo " --fix Réparer automatiquement ce qui manque"
+echo " --install Installer tout ce qui manque sans demander"
+echo " --verbose Afficher les détails"
+echo " --help Cette aide"
+echo ""
+exit 0
+;;
+*) echo "Option inconnue : $1" ;;
+esac
+shift
+done
+
+# ─── DETECTION OS ───
+if [ -f /etc/os-release ]; then
+. /etc/os-release
+OS_NAME="${PRETTY_NAME:-Linux}"
+OS_FAMILY="${ID_LIKE:-${ID:-unknown}}"
+else
+OS_NAME="$(uname -s)"
+OS_FAMILY="unknown"
+fi
+
+case "$OS_FAMILY" in
+*debian*|*ubuntu*) PKG="apt" ;;
+*fedora*|*rhel*) PKG="dnf" ;;
+*arch*) PKG="pacman" ;;
+*) PKG="unknown" ;;
+esac
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BANNIERE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+clear
+echo ""
+echo -e "${C}${BOLD}"
+cat << "BANNER"
+╔══════════════════════════════════════════════════════════════════════╗
+║ ║
+║ ██╗ ██╗███████╗ █████╗ ██╗ ████████╗██╗ ██╗ ║
+║ ██║ ██║██╔════╝██╔══██╗██║ ╚══██╔══╝██║ ██║ ║
+║ ███████║█████╗ ███████║██║ ██║ ███████║ ║
+║ ██╔══██║██╔══╝ ██╔══██║██║ ██║ ██╔══██║ ║
+║ ██║ ██║███████╗██║ ██║███████╗██║ ██║ ██║ ║
+║ ╚═╝ ╚═╝╚══════╝╚═╝ ╚═╝╚══════╝╚═╝ ╚═╝ ╚═╝ ║
+║ ║
+║ COBOL HEALTH CHECK & AUTO-INSTALLER v1.0.0 ║
+║ ║
+╚══════════════════════════════════════════════════════════════════════╝
+BANNER
+echo -e "${N}"
+printf " ${BOLD}${W}Auteur :${N} ${M}Aissa Mohammedi (DGK)${N}\n"
+printf " ${BOLD}${W}Licence :${N} ${G}NEXUS-OPEN-2.0${N}\n"
+printf " ${BOLD}${W}Système :${N} %s\n" "$OS_NAME"
+printf " ${BOLD}${W}Pkg mgr :${N} %s\n" "$PKG"
+printf " ${BOLD}${W}Mode :${N} %s\n" "$([ "$FIX_MODE" = "1" ] && echo -e "${G}RÉPARATION${N}" || echo -e "${C}DIAGNOSTIC${N}")"
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FONCTION DE TEST
+# ═══════════════════════════════════════════════════════════════════════════════
+
+check_tool() {
+local nom="$1"
+local cmd="$2"
+local desc="$3"
+local pkg_apt="$4"
+local required="${5:-1}"
+
+if command -v "$cmd" >/dev/null 2>&1; then
+local path ver
+path=$(command -v "$cmd")
+ver=""
+if [ "$VERBOSE" = "1" ]; then
+ver=$("$cmd" --version 2>/dev/null | head -1 || echo "?")
+fi
+printf " ${G}✓${N} %-12s ${D}%s${N}\n" "$nom" "$path"
+[ -n "$ver" ] && printf " ${D}%s${N}\n" "$ver"
+WORKING+=("$nom")
+return 0
+else
+if [ "$required" = "1" ]; then
+printf " ${R}✗${N} %-12s ${R}MANQUANT${N} ${D}(%s)${N}\n" "$nom" "$desc"
+MISSING+=("$nom|$cmd|$pkg_apt")
+else
+printf " ${Y}⚠${N} %-12s ${Y}optionnel${N} ${D}(%s)${N}\n" "$nom" "$desc"
+fi
+return 1
+fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 1 : OUTILS SYSTÈME
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 1/7 · OUTILS SYSTÈME"
+
+check_tool "bash" "bash" "Shell principal" "" 1
+check_tool "sh" "sh" "Shell POSIX" "" 1
+check_tool "awk" "awk" "Traitement texte" "gawk" 1
+check_tool "sed" "sed" "Édition flux" "sed" 1
+check_tool "grep" "grep" "Recherche" "grep" 1
+check_tool "find" "find" "Recherche fichiers" "findutils" 1
+check_tool "tar" "tar" "Archives" "tar" 1
+check_tool "gzip" "gzip" "Compression" "gzip" 1
+check_tool "file" "file" "Type fichiers" "file" 1
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 2 : COBOL COMPILATEUR
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 2/7 · COMPILATEUR COBOL"
+
+if command -v cobc >/dev/null 2>&1; then
+printf " ${G}✓${N} %-12s ${D}%s${N}\n" "cobc" "$(command -v cobc)"
+local_ver=$(cobc --version 2>/dev/null | head -1)
+printf " ${D}%s${N}\n" "$local_ver"
+
+# Tester que cobc fonctionne vraiment
+TEST_DIR="/tmp/nexus_cobc_test_$$"
+mkdir -p "$TEST_DIR"
+cat > "$TEST_DIR/test.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. TEST.
+PROCEDURE DIVISION.
+DISPLAY "TEST OK".
+STOP RUN.
+COB
+
+if cobc -x -free -o "$TEST_DIR/test" "$TEST_DIR/test.cob" 2>/dev/null; then
+if [ -x "$TEST_DIR/test" ]; then
+RESULT=$("$TEST_DIR/test" 2>/dev/null | head -1)
+if [ "$RESULT" = "TEST OK" ]; then
+printf " ${G}✓${N} %-12s ${G}FONCTIONNEL${N} ${D}(test compile + execute)${N}\n" "test"
+WORKING+=("cobc")
+else
+printf " ${R}✗${N} %-12s ${R}NE FONCTIONNE PAS${N}\n" "test"
+BROKEN+=("cobc|Compilation réussie mais exécution échouée")
+fi
+fi
+else
+printf " ${R}✗${N} %-12s ${R}COMPILATION KO${N}\n" "test"
+BROKEN+=("cobc|Impossible de compiler un programme test")
+fi
+rm -rf "$TEST_DIR"
+else
+printf " ${R}✗${N} %-12s ${R}MANQUANT${N} ${D}(compilateur COBOL)${N}\n" "cobc"
+MISSING+=("cobc|cobc|gnucobol")
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 3 : OUTILS DE COMPILATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 3/7 · OUTILS DE COMPILATION"
+
+check_tool "gcc" "gcc" "Compilateur C" "gcc" 1
+check_tool "g++" "g++" "Compilateur C++" "g++" 1
+check_tool "make" "make" "Build system" "make" 1
+check_tool "ld" "ld" "Linker" "binutils" 1
+check_tool "strip" "strip" "Strip binaires" "binutils" 1
+check_tool "ar" "ar" "Archiviste" "binutils" 1
+check_tool "ldd" "ldd" "Dépendances" "libc-bin" 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 4 : OUTILS RÉSEAU ET VERSIONING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 4/7 · RÉSEAU ET VERSIONING"
+
+check_tool "git" "git" "Version control" "git" 1
+check_tool "curl" "curl" "Client HTTP" "curl" 1
+check_tool "wget" "wget" "Client HTTP 2" "wget" 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 5 : OPTIMISATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 5/7 · OUTILS D'OPTIMISATION"
+
+check_tool "strip" "strip" "Strip symboles" "binutils" 1
+check_tool "upx" "upx" "Compression binaire" "upx-ucl" 0
+check_tool "objdump" "objdump" "Analyse binaire" "binutils" 0
+check_tool "readelf" "readelf" "Analyse ELF" "binutils" 0
+check_tool "nm" "nm" "Symboles" "binutils" 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 6 : ENVIRONNEMENT NEXUS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 6/7 · ENVIRONNEMENT NEXUS"
+
+if [ -d "$BASE" ]; then
+printf " ${G}✓${N} %-12s ${D}%s${N}\n" "BASE" "$BASE"
+
+# Vérifier chaque sous-dossier
+for sub in src bin run optimise rapports clones benchmarks cache tools; do
+if [ -d "$BASE/$sub" ]; then
+local_count=$(find "$BASE/$sub" -type f 2>/dev/null | wc -l)
+printf " ${G}✓${N} %-11s ${D}%s (%d fichiers)${N}\n" "$sub/" "$BASE/$sub" "$local_count"
+else
+printf " ${Y}⚠${N} %-11s ${Y}absent${N}\n" "$sub/"
+MISSING+=("$sub|mkdir|")
+fi
+done
+
+# Vérifier les sources COBOL
+if [ -d "$BASE/src" ]; then
+NB_SRC=$(ls "$BASE/src"/*.cob 2>/dev/null | wc -l)
+if [ "$NB_SRC" -gt 0 ]; then
+printf " ${G}✓${N} %-11s ${D}%d programme(s) COBOL${N}\n" "sources" "$NB_SRC"
+else
+printf " ${Y}⚠${N} %-11s ${Y}aucun .cob trouvé${N}\n" "sources"
+MISSING+=("sources|generate|")
+fi
+fi
+
+# Vérifier les binaires
+if [ -d "$BASE/bin" ]; then
+NB_BIN=$(find "$BASE/bin" -maxdepth 1 -type f -executable 2>/dev/null | wc -l)
+if [ "$NB_BIN" -gt 0 ]; then
+printf " ${G}✓${N} %-11s ${D}%d binaire(s) compilés${N}\n" "binaires" "$NB_BIN"
+else
+printf " ${Y}⚠${N} %-11s ${Y}aucun binaire compilé${N}\n" "binaires"
+MISSING+=("binaires|compile|")
+fi
+fi
+
+# Vérifier la config
+if [ -f "$BASE/config.json" ]; then
+printf " ${G}✓${N} %-11s ${D}%s${N}\n" "config" "$BASE/config.json"
+else
+printf " ${Y}⚠${N} %-11s ${Y}absent${N}\n" "config"
+MISSING+=("config.json|config|")
+fi
+else
+printf " ${R}✗${N} %-12s ${R}BASE MANQUANTE${N} ${D}%s${N}\n" "BASE" "$BASE"
+MISSING+=("BASE|mkdir|$BASE")
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN 7 : TEST FONCTIONNEL COMPLET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "SCAN 7/7 · TEST FONCTIONNEL COMPLET"
+
+if command -v cobc >/dev/null 2>&1; then
+TEST_DIR="/tmp/nexus_fulltest_$$"
+mkdir -p "$TEST_DIR"
+
+# Test 1 : Hello World
+info "Test 1 : Hello World..."
+cat > "$TEST_DIR/hello.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. HELLO.
+PROCEDURE DIVISION.
+DISPLAY "HELLO NEXUS".
+STOP RUN.
+COB
+
+if cobc -x -free -o "$TEST_DIR/hello" "$TEST_DIR/hello.cob" 2>/dev/null; then
+OUTPUT=$("$TEST_DIR/hello" 2>/dev/null)
+if [ "$OUTPUT" = "HELLO NEXUS" ]; then
+ok "Hello World : OK"
+else
+ko "Hello World : sortie incorrecte ($OUTPUT)"
+BROKEN+=("hello|cobc compile mais sortie incorrecte")
+fi
+else
+ko "Hello World : compilation échouée"
+BROKEN+=("hello|compilation échouée")
+fi
+
+# Test 2 : Arithmétique
+info "Test 2 : Arithmétique..."
+cat > "$TEST_DIR/arith.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. ARITH.
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-A PIC 9(3) VALUE 10.
+01 WS-B PIC 9(3) VALUE 20.
+01 WS-C PIC 9(4) VALUE 0.
+PROCEDURE DIVISION.
+COMPUTE WS-C = WS-A + WS-B.
+DISPLAY "RESULTAT=" WS-C.
+STOP RUN.
+COB
+
+if cobc -x -free -o "$TEST_DIR/arith" "$TEST_DIR/arith.cob" 2>/dev/null; then
+OUTPUT=$("$TEST_DIR/arith" 2>/dev/null)
+if echo "$OUTPUT" | grep -q "RESULTAT=030"; then
+ok "Arithmétique : OK"
+else
+ko "Arithmétique : sortie incorrecte ($OUTPUT)"
+BROKEN+=("arith|sortie incorrecte")
+fi
+else
+ko "Arithmétique : compilation échouée"
+fi
+
+# Test 3 : Boucle
+info "Test 3 : Boucle PERFORM..."
+cat > "$TEST_DIR/loop.cob" << 'COB'
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LOOP.
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-I PIC 9(3) VALUE 0.
+01 WS-SOMME PIC 9(4) VALUE 0.
+PROCEDURE DIVISION.
+PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 10
+ADD WS-I TO WS-SOMME
+END-PERFORM.
+DISPLAY "SOMME=" WS-SOMME.
+STOP RUN.
+COB
+
+if cobc -x -free -o "$TEST_DIR/loop" "$TEST_DIR/loop.cob" 2>/dev/null; then
+OUTPUT=$("$TEST_DIR/loop" 2>/dev/null)
+if echo "$OUTPUT" | grep -q "SOMME=055"; then
+ok "Boucle PERFORM : OK"
+else
+ko "Boucle PERFORM : sortie incorrecte ($OUTPUT)"
+fi
+else
+ko "Boucle PERFORM : compilation échouée"
+fi
+
+# Test 4 : Optimisation O2
+info "Test 4 : Optimisation -O2..."
+if cobc -x -free -O2 -o "$TEST_DIR/opt" "$TEST_DIR/hello.cob" 2>/dev/null; then
+ok "Compilation -O2 : OK"
+else
+ko "Compilation -O2 : échouée"
+BROKEN+=("opt2|Compilation O2 échouée")
+fi
+
+# Test 5 : Strip
+info "Test 5 : Strip..."
+if command -v strip >/dev/null 2>&1; then
+AVANT=$(stat -c%s "$TEST_DIR/hello" 2>/dev/null || echo 0)
+if strip "$TEST_DIR/hello" 2>/dev/null; then
+APRES=$(stat -c%s "$TEST_DIR/hello" 2>/dev/null || echo 0)
+GAIN=$((AVANT - APRES))
+ok "Strip : OK (${AVANT} → ${APRES} o, -${GAIN} o)"
+else
+warn "Strip : échec (non bloquant)"
+fi
+else
+warn "Strip : absent"
+fi
+
+rm -rf "$TEST_DIR"
+else
+ko "Test fonctionnel impossible (cobc manquant)"
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RÉSUMÉ DU DIAGNOSTIC
+# ═══════════════════════════════════════════════════════════════════════════════
+
+section "RÉSUMÉ DU DIAGNOSTIC"
+
+NB_WORKING=${#WORKING[@]}
+NB_MISSING=${#MISSING[@]}
+NB_BROKEN=${#BROKEN[@]}
+
+printf " ${G}✓${N} %-30s ${G}%d${N}\n" "Éléments fonctionnels" "$NB_WORKING"
+printf " ${R}✗${N} %-30s ${R}%d${N}\n" "Éléments manquants" "$NB_MISSING"
+printf " ${Y}⚠${N} %-30s ${Y}%d${N}\n" "Éléments cassés" "$NB_BROKEN"
+echo ""
+
+# Évaluation globale
+if [ "$NB_MISSING" -eq 0 ] && [ "$NB_BROKEN" -eq 0 ]; then
+echo -e " ${G}${BOLD}═══════════════════════════════════════════════${N}"
+echo -e " ${G}${BOLD} ✓ INSTALLATION COBOL COMPLÈTE ET FONCTIONNELLE${N}"
+echo -e " ${G}${BOLD}═══════════════════════════════════════════════${N}"
+STATUS="COMPLETE"
+elif [ "$NB_BROKEN" -gt 0 ]; then
+echo -e " ${Y}${BOLD}═══════════════════════════════════════════════${N}"
+echo -e " ${Y}${BOLD} ⚠ INSTALLATION PARTIELLE AVEC PROBLÈMES${N}"
+echo -e " ${Y}${BOLD}═══════════════════════════════════════════════${N}"
+STATUS="BROKEN"
+else
+echo -e " ${R}${BOLD}═══════════════════════════════════════════════${N}"
+echo -e " ${R}${BOLD} ✗ INSTALLATION INCOMPLÈTE${N}"
+echo -e " ${R}${BOLD}═══════════════════════════════════════════════${N}"
+STATUS="INCOMPLETE"
+fi
+
+echo ""
+
+# ─── LISTE DES MANQUANTS ───
+if [ "$NB_MISSING" -gt 0 ]; then
+section "ÉLÉMENTS À INSTALLER"
+for item in "${MISSING[@]}"; do
+IFS='|' read -r nom cmd pkg <<< "$item"
+printf " ${R}✗${N} %-15s ${D}pkg: %s${N}\n" "$nom" "$pkg"
+done
+fi
+
+if [ "$NB_BROKEN" -gt 0 ]; then
+section "ÉLÉMENTS CASSÉS"
+for item in "${BROKEN[@]}"; do
+IFS='|' read -r nom msg <<< "$item"
+printf " ${Y}⚠${N} %-15s ${D}%s${N}\n" "$nom" "$msg"
+done
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RÉPARATION AUTOMATIQUE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if [ "$FIX_MODE" = "1" ] && [ "$NB_MISSING" -gt 0 ]; then
+section "RÉPARATION AUTOMATIQUE"
+
+# Installer via pkg manager
+PKGS_TO_INSTALL=()
+for item in "${MISSING[@]}"; do
+IFS='|' read -r nom cmd pkg <<< "$item"
+if [ -n "$pkg" ] && [ "$pkg" != "mkdir" ] && [ "$pkg" != "compile" ] && [ "$pkg" != "config" ] && [ "$pkg" != "generate" ]; then
+# Vérifier qu'il n'est pas déjà dans la liste
+local_found=0
+for p in "${PKGS_TO_INSTALL[@]:-}"; do
+[ "$p" = "$pkg" ] && local_found=1 && break
+done
+[ "$local_found" = "0" ] && PKGS_TO_INSTALL+=("$pkg")
+fi
+done
+
+if [ ${#PKGS_TO_INSTALL[@]} -gt 0 ]; then
+info "Paquets à installer : ${PKGS_TO_INSTALL[*]}"
+
+case "$PKG" in
+apt)
+sudo apt update -qq
+sudo apt install -y "${PKGS_TO_INSTALL[@]}"
+;;
+dnf)
+sudo dnf install -y "${PKGS_TO_INSTALL[@]}"
+;;
+pacman)
+sudo pacman -S --noconfirm "${PKGS_TO_INSTALL[@]}"
+;;
+esac
+
+# Vérifier ce qui a été installé
+for item in "${MISSING[@]}"; do
+IFS='|' read -r nom cmd pkg <<< "$item"
+if command -v "$cmd" >/dev/null 2>&1; then
+ok "$nom : installé"
+FIXED+=("$nom")
+fi
+done
+fi
+
+# Créer les dossiers manquants
+for item in "${MISSING[@]}"; do
+IFS='|' read -r nom cmd pkg <<< "$item"
+if [ "$cmd" = "mkdir" ]; then
+if [ "$nom" = "BASE" ]; then
+mkdir -p "$pkg"
+else
+mkdir -p "$BASE/$nom"
+fi
+ok "Dossier $nom : créé"
+FIXED+=("$nom")
+fi
+done
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RÉSUMÉ FINAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+echo ""
+echo -e " ${D}──────────────────────────────────────────────────────────────────${N}"
+echo ""
+
+if [ "$STATUS" = "COMPLETE" ]; then
+printf " ${G}${BOLD}✓ COBOL EST PRÊT À L'EMPLOI${N}\n"
+echo ""
+echo -e " ${BOLD}Commandes :${N}"
+printf " ${C}cobc --version${N} ${D}(vérifier cobc)${N}\n"
+printf " ${C}cobc -x -free -o prog prog.cob${N} ${D}(compiler)${N}\n"
+printf " ${C}./prog${N} ${D}(exécuter)${N}\n"
+echo ""
+elif [ "$STATUS" = "INCOMPLETE" ]; then
+printf " ${R}${BOLD}✗ INSTALLATION INCOMPLÈTE${N}\n"
+echo ""
+printf " ${BOLD}Pour installer tout ce qui manque :${N}\n"
+printf " ${C}$0 --install${N}\n"
+echo ""
+printf " ${BOLD}Ou manuellement :${N}\n"
+printf " ${C}sudo $PKG install gnucobol gnucobol-doc${N}\n"
+echo ""
+else
+printf " ${Y}${BOLD}⚠ INSTALLATION AVEC PROBLÈMES${N}\n"
+echo ""
+printf " ${BOLD}Vérifie tes logs :${N}\n"
+printf " ${C}cobc --version${N}\n"
+printf " ${C}which cobc${N}\n"
+echo ""
+fi
+
+echo -e " ${D}──────────────────────────────────────────────────────────────────${N}"
+echo ""
+printf " ${BOLD}${M}NEXUS COBOL HEALTH CHECK${N} ${D}- ${AUTEUR:-Aissa Mohammedi (DGK)}${N}\n"
+printf " ${D}Statut : $STATUS${N}\n"
+echo ""
